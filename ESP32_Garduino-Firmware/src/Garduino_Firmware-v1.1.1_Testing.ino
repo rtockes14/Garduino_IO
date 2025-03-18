@@ -40,6 +40,9 @@
 #define sensorPin3 16
 //#define DHTTYPE DHT22
 
+const int widthOfScreen = 128;
+const int heightOfScreen = 64;
+
 
 /* 
 ======================================================================================================
@@ -416,21 +419,20 @@ void update()
 
 void calibrateSensorsDry(void)
 {
-  int avgdsensorReadings[10];
+  int avgdsensorReadings[15];
   int sumOfReadings = 0;
   bool calibrationRecorded = false;
 
+  // Tell user to place both soil moisture sensors in a pot with Bone-Dry soil
+  printFramedCenteredText(3, 10, 6, 5000, "PLEASE PLACE BOTH", "SENSORS IN A POT", "WITH BONE DRY SOIL"); 
+  
+  // Prompt user to click button when ready
   u8g2.clearBuffer();
-  //delay(500);
   u8g2_prepare();
   u8g2.setFontMode(2);
   u8g2.setDrawColor(1);
   u8g2.drawRFrame(1, 1, 126, 62, 3);
   u8g2.drawRBox(28, 32, 69, 13, 3);
-  // Tell user to place both soil moisture sensors in a pot with Bone-Dry soil
-  //u8g2.drawStr(10, 15, "Please place both sensors in a pot with Bone-Dry soil");
-  //u8g2.drawStr(10, 25, "Press Calibrate when Ready");
-  // Prompt user to click button when ready
   u8g2.setFontMode(2);
   u8g2.setDrawColor(2);
   u8g2.drawStr(54, 20, "DRY");
@@ -452,88 +454,103 @@ void calibrateSensorsDry(void)
       calibrationRecorded = true;
       delay(300);
     }
-    // If the switch changed, due to noise or pressing:
-    //if (reading != lastbtnState) {
-      //// reset the debouncing timer
-      //lastDebounceTime = millis();
-    //}
-    //// whatever the reading is at, it's been there for longer than the debounce delay, so take it as the actual current state:
-    //if ((millis() - lastDebounceTime) > debounceDelay) 
-    //{
-      //// if the button state has changed:
-      //if (reading != btnState) 
-      //{
-        //btnState = reading;
-
-        //if(btnState == LOW)
-        //{
-          //Serial.println("Button Pressed");
-          //calibrationRecorded = true;
-          //delay(300);
-        //}
-      //}
-    //}
-    
   }
-  //delay(5000);
+  
+  printFramedCenteredText(2, 10, 6, 3000, "CALIBRATING", "SENSORS", ""); 
 
-  //for (int i = 0; i < 10; i++)
-  //{
-    //avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
-    //sumOfReadings += avgdsensorReadings[i];
-  //}
-  //MIN_HUMIDITY = sumOfReadings / 10;
+  for (int i = 0; i < 15; i++)
+  {
+    avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
+    sumOfReadings += avgdsensorReadings[i];
+    delay(20);
+  }
+  MIN_HUMIDITY = sumOfReadings / 15;
+
+  Serial.println("Min Humidity");
+  Serial.println(MIN_HUMIDITY);
+  delay(3000);
+}
+
+void printFramedCenteredText(int numberOfLines, int heightOfFont, int widthOfFont, int lengthOfDelay, String string1, String string2, String string3)
+{
+  int length1 = strlen(string1.c_str());
+  int length2 = strlen(string2.c_str());
+  int length3 = strlen(string3.c_str());
+
+  u8g2.clearBuffer();
+  u8g2_prepare();
+  u8g2.setFontMode(2);
+  u8g2.setDrawColor(1);
+  u8g2.drawRFrame(1, 1, 126, 62, 3);
+  //u8g2.setFontMode(2);
+  //u8g2.setDrawColor(2);
+  if (numberOfLines == 1){
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string1.c_str());
+  } else if (numberOfLines == 2){
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 10, string1.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) + 2, string2.c_str());
+  } else{
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 17, string1.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string2.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length3) / 2)), (heightOfScreen / 2) + 7, string3.c_str());
+  }
+  
+  u8g2.sendBuffer();
+  delay(lengthOfDelay);
+
 }
 
 void calibrateSensorsWet(void)
 {
-
-  int avgdsensorReadings[10];
+  int avgdsensorReadings[15];
   int sumOfReadings = 0;
   bool calibrationRecorded = false;
 
-  u8g2.drawFrame(114, 4, 10, 42);
+  // Tell user to thoroughly water the pot until the soil is fully saturated
+  printFramedCenteredText(3, 10, 6, 5000, "NOW THOROUGHLY", "WATER SOIL UNTIL", "FULLY SATURATED"); 
+  // Prompt user to click button when ready
+  u8g2.clearBuffer();
+  u8g2_prepare();
+  u8g2.setFontMode(2);
+  u8g2.setDrawColor(1);
+  u8g2.drawRFrame(1, 1, 126, 62, 3);
+  u8g2.drawRBox(28, 32, 69, 13, 3);
+  u8g2.setFontMode(2);
+  u8g2.setDrawColor(2);
+  u8g2.drawStr(54, 20, "WET");
+  u8g2.drawStr(36, 34, "CALIBRATE");
+  
+  u8g2.sendBuffer();
+  delay(1000);
 
-  //while(calibrationRecorded == false)
-  //{
-    //int reading = digitalRead(SW);
-    //// If the switch changed, due to noise or pressing:
-    //if (reading != lastbtnState) {
-      //// reset the debouncing timer
-      //lastDebounceTime = millis();
-    //}
-    //// whatever the reading is at, it's been there for longer than the debounce delay, so take it as the actual current state:
-    //if ((millis() - lastDebounceTime) > debounceDelay) 
-    //{
-      //// if the button state has changed:
-      //if (reading != btnState) 
-      //{
-        //btnState = reading;
+  while(calibrationRecorded == false)
+  {
+    int reading = digitalRead(SW);
+    
+    btnState = reading;
 
-        //if(btnState == LOW)
-        //{
-          //calibrationRecorded= true;
-          //delay(300);
-        //}
-      //}
-    //}
-    // save the btn reading. Next time through the loop, it'll be the lastButtonState:
-    //lastbtnState = reading;
-    // Tell user to throughly water the pot so that all soil is saturated
-    u8g2.drawStr(10, 15, "Now thoroughly water the pot so that all soil is saturated");
-    u8g2.drawStr(10, 25, "Press Calibrate when Ready");
-    // Promt user to click button when ready
-    u8g2.drawRBox(40, 4, 45, 12, 3);
-    u8g2.drawStr(20, 30, "Calibrate WET");
-
-    for (int i = 0; i < 10; i++)
+    if(btnState == LOW)
     {
-      avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
-      sumOfReadings += avgdsensorReadings[i];
+      Serial.println("Button Pressed");
+      calibrationRecorded = true;
+      delay(300);
     }
-    MAX_HUMIDITY = sumOfReadings / 10;
   }
-//}
+  
+  printFramedCenteredText(2, 10, 6, 3000, "CALIBRATING", "SENSORS", ""); 
+
+  for (int i = 0; i < 15; i++)
+  {
+    avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
+    sumOfReadings += avgdsensorReadings[i];
+    delay(20);
+  }
+  MAX_HUMIDITY = sumOfReadings / 15;
+
+  Serial.println("Max Humidity");
+  Serial.println(MAX_HUMIDITY);
+  delay(1000);
+}
 
 void u8g2_lastWater(void)
 {
@@ -1424,11 +1441,12 @@ void setup(void)
   Serial.println("CalibratSensorDry");
   calibrateSensorsDry();
 
-  //Serial.println("CalibratSensorWet");
-  //calibrateSensorsWet();
+  Serial.println("CalibratSensorWet");
+  calibrateSensorsWet();
 
-  Serial.println("Retreived Schedules");
+
   retrieveSchedule();
+  Serial.println("Retreived Schedules");
   
   initSetup = true;
 }
