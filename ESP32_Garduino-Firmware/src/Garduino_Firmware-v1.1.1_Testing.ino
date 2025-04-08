@@ -15,9 +15,9 @@
 #endif
 
 // define pins
-#define BLUE 21
-#define RED 5
-#define GREEN 13
+#define BLUE 17
+#define RED 25
+#define GREEN 26
 
 #define BUZZER 5
 
@@ -27,13 +27,13 @@
 #define Relay_3 14 // Azalea
 #define Relay_4 27 // Ivy
 
-//#define CLK 21
-//#define DT 22
-//#define SW 13
+#define CLK 21
+#define DT 22
+#define SW 13
 
-#define CLK 25
-#define DT 26
-#define SW 27
+//#define CLK 25
+//#define DT 26
+//#define SW 27
 
 #define sensorPin 35
 #define sensorPin2 34
@@ -76,7 +76,7 @@ const int   daylightOffset_sec = 3600;
 const int dry = 595;
 const int wet = 239;
 
-const int BED_TIME = 18;
+const int BED_TIME = 22;
 const int WAKE_TIME = 6;
 
 //const char* time_zone = "CET-1CEST,M3.5.0,M10.5.0/3";  // TimeZone rule for Europe/Rome including daylight adjustment rules (optional)
@@ -98,8 +98,8 @@ struct plantNumber
 
 const int BOX_HEIGHT = 15;
 const int BOX_WIDTH = 62;
-int MIN_HUMIDITY = 750;
-int MAX_HUMIDITY = 3000;
+int SENSOR_DRY = 3000;
+int SENSOR_WET = 1000;
 
 unsigned long lastButtonPress = 0;   
 int currentStateCLK;
@@ -308,7 +308,7 @@ void printLocalTime(void)
 // Callback function (get's called when time adjusts via NTP)
 void timeavailable(struct timeval *t)
 {
-  Serial.println("Got time adjustment from NTP!");
+  //Serial.println("Got time adjustment from NTP!");
   printLocalTime();
 }
 
@@ -439,7 +439,6 @@ void calibrateSensorsDry(void)
   u8g2.drawStr(36, 34, "CALIBRATE");
   
   u8g2.sendBuffer();
-  Serial.println("Buffer sent");
   delay(1000);
 
   while(calibrationRecorded == false)
@@ -464,10 +463,10 @@ void calibrateSensorsDry(void)
     sumOfReadings += avgdsensorReadings[i];
     delay(20);
   }
-  MIN_HUMIDITY = sumOfReadings / 15;
+  SENSOR_DRY = sumOfReadings / 15;
 
-  Serial.println("Min Humidity");
-  Serial.println(MIN_HUMIDITY);
+  Serial.print("Sensor Dry: ");
+  Serial.println(SENSOR_DRY);
   delay(3000);
 }
 
@@ -545,10 +544,10 @@ void calibrateSensorsWet(void)
     sumOfReadings += avgdsensorReadings[i];
     delay(20);
   }
-  MAX_HUMIDITY = sumOfReadings / 15;
+  SENSOR_WET = sumOfReadings / 15;
 
-  Serial.println("Max Humidity");
-  Serial.println(MAX_HUMIDITY);
+  Serial.print("Sensor Wet: ");
+  Serial.println(SENSOR_WET);
   delay(1000);
 }
 
@@ -638,9 +637,9 @@ void checkSchedule()    // ================ NEEDS WORK
   int hour = timeinfo.tm_hour;
   int minute = timeinfo.tm_min;
   int day = timeinfo.tm_wday - 1;
-  Serial.println(day);
-  Serial.println(hour);
-  Serial.println(minute);
+  //Serial.println(day);
+  //Serial.println(hour);
+  //Serial.println(minute);
 
   // CHANGE THIS LATER
   if (
@@ -655,7 +654,7 @@ void checkSchedule()    // ================ NEEDS WORK
       startCycleActive(counter, counter2, k, selector);
     }
     else{
-      Serial.println("My plant1 was already watered today");
+      //Serial.println("My plant1 was already watered today");
     }
   }
   if (
@@ -670,7 +669,7 @@ void checkSchedule()    // ================ NEEDS WORK
         startCycleActive(counter, counter2, k, selector);
       }
       else{
-        Serial.println("My plant2 was already watered today");
+        //Serial.println("My plant2 was already watered today");
       }
     }
 }
@@ -685,7 +684,7 @@ void checkPlantState(void)  // For automatic watering based on plant sate
       startCycleActive(counter, counter2, k, selector);
     }
     else{
-      Serial.println("My plant1 was already watered today");
+      //Serial.println("My plant1 was already watered today");
     }
   }
     if(myPlant2.plantState == 1)
@@ -699,7 +698,7 @@ void checkPlantState(void)  // For automatic watering based on plant sate
       startCycleActive(counter, counter2, k, selector);
     }
     else{
-      Serial.println("My plant2 was already watered today");
+      //Serial.println("My plant2 was already watered today");
     }
   }
 }
@@ -1020,13 +1019,13 @@ float readSensor2()
 
 int conformSensorReadings(int sensorReading)
 {
-  if (sensorReading > MAX_HUMIDITY)
+  if (sensorReading < SENSOR_WET)
   {
-    sensorReading = MAX_HUMIDITY;
+    sensorReading = SENSOR_WET;
   }
-  if (sensorReading < MIN_HUMIDITY)
+  if (sensorReading > SENSOR_DRY)
   {
-    sensorReading = MIN_HUMIDITY;
+    sensorReading = SENSOR_DRY;
   }
   return sensorReading;
 }
@@ -1224,7 +1223,8 @@ void retrieveSchedule(void)
 
 void postData(void)
 {
-   if(currentMillis - postPreviousMillis >= 900000 || initSetup == false) {           //300000 for every 5 min      
+   //if(currentMillis - postPreviousMillis >= 900000 || initSetup == false) {           //300000 for every 5 min      
+   if(currentMillis - postPreviousMillis >= 900000) {           //300000 for every 5 min      
     postPreviousMillis = currentMillis;
     colorSelect('r');
     HTTPClient http;
@@ -1393,49 +1393,47 @@ void setup(void)
 
   delay(500);
 
-  //pinMode(RED, OUTPUT);
-  //pinMode(GREEN, OUTPUT);
-  //pinMode(BLUE, OUTPUT);
-  //pinMode(BUZZER, OUTPUT);
+  pinMode(RED, OUTPUT);
+  pinMode(GREEN, OUTPUT);
+  pinMode(BLUE, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
 
-  //// LED startup sequence
-  //colorSelect('o');
-  //delay(25);
-  //colorSelect('r');
-  //delay(500);
-  //colorSelect('g');
-  //delay(500);
-  //colorSelect('b');
-  //delay(500);
+  // LED startup sequence
+  colorSelect('o');
+  delay(25);
+  colorSelect('r');
+  delay(500);
+  colorSelect('g');
+  delay(500);
+  colorSelect('b');
+  delay(500);
 
-  //colorSelect('g');
+  colorSelect('g');
 
   // Rotary encoder
   pinMode(SW, INPUT_PULLUP);       // Enable the switchPin as input 
   pinMode(DT, INPUT);                   // Set PinA as input
   pinMode(CLK, INPUT);                   // Set PinB as input
 
-  // Relay module startup
-  //pinMode(Relay_1, OUTPUT);               // Pump
-  //// pinMode(Relay_2, OUTPUT);               // Solenoid 1
-  //pinMode(Relay_3, OUTPUT);               // Solenoid 2
-  //pinMode(Relay_4, OUTPUT);  
+  //Relay module startup
+  pinMode(Relay_1, OUTPUT);               // Pump
+  // pinMode(Relay_2, OUTPUT);               // Solenoid 1
+  pinMode(Relay_3, OUTPUT);               // Solenoid 2
+  pinMode(Relay_4, OUTPUT);  
   
-  //digitalWrite(Relay_1, HIGH);
-  //// digitalWrite(Relay_2, HIGH);
-  //digitalWrite(Relay_3, HIGH);
-  //digitalWrite(Relay_4, HIGH);
+  digitalWrite(Relay_1, HIGH);
+  // digitalWrite(Relay_2, HIGH);
+  digitalWrite(Relay_3, HIGH);
+  digitalWrite(Relay_4, HIGH);
 
-  //digitalWrite(BUZZER, HIGH);
+  digitalWrite(BUZZER, HIGH);
 
   // Atach a CHANGE interrupt to PinB and exectute the update function when this change occurs.
-  attachInterrupt(digitalPinToInterrupt(26), update, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(22), update, CHANGE);
 
   lastStateCLK = digitalRead(CLK);
 
-
-
-  //digitalWrite(BUZZER, LOW);
+  digitalWrite(BUZZER, LOW);
 
 
   Serial.println("CalibratSensorDry");
@@ -1443,7 +1441,6 @@ void setup(void)
 
   Serial.println("CalibratSensorWet");
   calibrateSensorsWet();
-
 
   retrieveSchedule();
   Serial.println("Retreived Schedules");
@@ -1491,20 +1488,22 @@ void loop(void)
   uint32_t readings2 = 0;
 
   //sleepWakeTimer();
-  int sensorVal1 = conformSensorReadings(analogRead(sensorPin));
-  int sensorVal2 = conformSensorReadings(analogRead(sensorPin2));
+  //int sensorVal1 = conformSensorReadings(analogRead(sensorPin));
+  //int sensorVal2 = conformSensorReadings(analogRead(sensorPin2));
+  int sensorVal1 = analogRead(sensorPin);
+  int sensorVal2 = analogRead(sensorPin2);
 
   Serial.print(sensorVal1);
   Serial.print("\t");
   Serial.println(sensorVal2);
   //temperatureVal = dht.readTemperature(true);
-  moisture = map(sensorVal1,  MIN_HUMIDITY, MAX_HUMIDITY, 100, 0);
-  moisture2 = map(sensorVal2, MIN_HUMIDITY, MAX_HUMIDITY, 100, 0);
+  moisture = map(sensorVal1,  SENSOR_WET, SENSOR_DRY, 100, 0);
+  moisture2 = map(sensorVal2, SENSOR_WET, SENSOR_DRY, 100, 0);
   
   Serial.print(sensorVal1);
   Serial.print("\t");
   Serial.print(moisture);
-  Serial.print("\t");
+  Serial.print("\t\t\t");
   Serial.print(sensorVal2);
   Serial.print("\t");
   Serial.print(moisture2);
@@ -1512,11 +1511,28 @@ void loop(void)
 
   printLocalTime();     // it will take some time to sync time :)
 
+  if (moisture > 100)
+  {
+    moisture = 100;
+  }
+  if (moisture2 > 100)
+  {
+    moisture2 = 100;
+  }
+  if (moisture < 0)
+  {
+    moisture = 0;
+  }
+  if (moisture2 < 0)
+  {
+    moisture2 = 0;
+  }
+
   counter = map(moisture, 0, 100, 0, 41);
   counter2 = map(moisture2, 0, 100, 0, 41);
   }
 
-  //postData();
+  postData();
 
   u8g2.clearBuffer();
 
