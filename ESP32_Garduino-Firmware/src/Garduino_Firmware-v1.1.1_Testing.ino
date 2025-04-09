@@ -21,16 +21,15 @@
 
 #define BUZZER 5
 
-#define PUMP 4 //
-
 #define Relay_1 33 // Pump
-#define Relay_3 14 // Azalea
-#define Relay_4 27 // Ivy
+#define Relay_3 14 // Plant 1 
+#define Relay_4 27 // Plant 2 
 
 #define CLK 21
 #define DT 22
 #define SW 13
 
+// -- Testing board --
 //#define CLK 25
 //#define DT 26
 //#define SW 27
@@ -51,7 +50,7 @@ const int heightOfScreen = 64;
   Notes during Programming & TO-DO:
 
   X --- 1. Add state to remove relays triggering on each loop
-  2. Calibrate wet / dry references and update map function
+  X --- 2. Calibrate wet / dry references and update map function
   X --- 3. Ensure on auto trigger there is a timeout so it doesn't keep watering until sensor catches up.  Must wait at least a day for auto trigger
   4. Add timeout to switch back to Passive state(green led)
   X --- |||||||||||||| Tried this and reverted because readings were too smooth..  5. Average readings to reduce jumpy values
@@ -86,7 +85,6 @@ U8G2_SSD1309_128X64_NONAME0_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 15, /* dc=*/ 32, 
 
 struct plantNumber
 {
-  //char name[12];
   String name;
   int DayNumber;
   int hour;
@@ -98,8 +96,10 @@ struct plantNumber
 
 const int BOX_HEIGHT = 15;
 const int BOX_WIDTH = 62;
-int SENSOR_DRY = 3000;
-int SENSOR_WET = 1000;
+int SENSOR1_DRY = 3000;
+int SENSOR1_WET = 1000;
+int SENSOR2_DRY = 3000;
+int SENSOR2_WET = 1000;
 
 unsigned long lastButtonPress = 0;   
 int currentStateCLK;
@@ -151,7 +151,7 @@ int wateringDelay2 = 3000;
 const int menuDelay = 20000;
 const int sendDataDelay = 5000;
 const int sleepDelay = 900000;
-const int wakeDelay = 5000;
+const int wakeDelay = 10000;
 
 String serverName = "https://bluegarden-6f0bc98539d7.herokuapp.com/api/plants";
 String serverSchedule = "https://bluegarden-6f0bc98539d7.herokuapp.com/api/device_info";
@@ -171,12 +171,6 @@ char daysOfTheWeek[8][12] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 plantNumber myPlant1 = {"1:", 7, 0, 0, 0, false, 3};
 plantNumber myPlant2 = {"2:", 7, 0, 0, 0, false, 3};
-
-// ====================================================================================================================================
-
-//                      FUNCTIONS 
-
-// ====================================================================================================================================
 
 // 'New Piskel-1', 47x47px
 const unsigned char epd_bitmap_New_Piskel_1 [] PROGMEM = {
@@ -273,6 +267,13 @@ const unsigned char* epd_bitmap_allArray[4] = {
 };
 
 
+// =======================================================================================================================================================================================================
+
+//                      SETUP 
+
+// ======================================================================================================================================================================================================= 
+
+
 void printLocalTime(void)
 {
   if(!getLocalTime(&timeinfo)){
@@ -290,10 +291,10 @@ void printLocalTime(void)
 
   //strftime (buffer, 80, "%I:%M%p", timeinfo);
   strftime (buffer, 15, "%H%M%S", timeinfo);
-  puts(buffer);
+  //puts(buffer);
 
   int val = atoi(buffer);
-  printf("--- %d --- \t", val);
+  //printf("--- %d --- \t", val);
 
   // if the time is between 11:59:53PM and 6secs later(for readtime) reset watered today bool check
   if (val >= 235953 && val <= 235959)
@@ -419,8 +420,10 @@ void update()
 
 void calibrateSensorsDry(void)
 {
-  int avgdsensorReadings[15];
-  int sumOfReadings = 0;
+  int avgdSensor1Readings[15];
+  int avgdSensor2Readings[15];
+  int sumOfSensor1Readings = 0;
+  int sumOfSensor2Readings = 0;
   bool calibrationRecorded = false;
 
   // Tell user to place both soil moisture sensors in a pot with Bone-Dry soil
@@ -459,50 +462,31 @@ void calibrateSensorsDry(void)
 
   for (int i = 0; i < 15; i++)
   {
-    avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
-    sumOfReadings += avgdsensorReadings[i];
+    avgdSensor1Readings[i] = analogRead(sensorPin); 
+    avgdSensor2Readings[i] = analogRead(sensorPin2); 
+    sumOfSensor1Readings += avgdSensor1Readings[i];
+    sumOfSensor2Readings += avgdSensor2Readings[i];
     delay(20);
   }
-  SENSOR_DRY = sumOfReadings / 15;
+  SENSOR1_DRY = sumOfSensor1Readings / 15;
+  SENSOR2_DRY = sumOfSensor2Readings / 15;
 
-  Serial.print("Sensor Dry: ");
-  Serial.println(SENSOR_DRY);
-  delay(3000);
+  Serial.print("Sensor 1 Dry: ");
+  Serial.print(SENSOR1_DRY);
+  Serial.print("   //////   ");
+  Serial.print("Sensor 2 Dry: ");
+  Serial.println(SENSOR2_DRY);
+  delay(2000);
 }
 
-void printFramedCenteredText(int numberOfLines, int heightOfFont, int widthOfFont, int lengthOfDelay, String string1, String string2, String string3)
-{
-  int length1 = strlen(string1.c_str());
-  int length2 = strlen(string2.c_str());
-  int length3 = strlen(string3.c_str());
 
-  u8g2.clearBuffer();
-  u8g2_prepare();
-  u8g2.setFontMode(2);
-  u8g2.setDrawColor(1);
-  u8g2.drawRFrame(1, 1, 126, 62, 3);
-  //u8g2.setFontMode(2);
-  //u8g2.setDrawColor(2);
-  if (numberOfLines == 1){
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string1.c_str());
-  } else if (numberOfLines == 2){
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 10, string1.c_str());
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) + 2, string2.c_str());
-  } else{
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 17, string1.c_str());
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string2.c_str());
-    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length3) / 2)), (heightOfScreen / 2) + 7, string3.c_str());
-  }
-  
-  u8g2.sendBuffer();
-  delay(lengthOfDelay);
-
-}
 
 void calibrateSensorsWet(void)
 {
-  int avgdsensorReadings[15];
-  int sumOfReadings = 0;
+  int avgdSensor1Readings[15];
+  int avgdSensor2Readings[15];
+  int sumOfSensor1Readings = 0;
+  int sumOfSensor2Readings = 0;
   bool calibrationRecorded = false;
 
   // Tell user to thoroughly water the pot until the soil is fully saturated
@@ -540,15 +524,51 @@ void calibrateSensorsWet(void)
 
   for (int i = 0; i < 15; i++)
   {
-    avgdsensorReadings[i] = (analogRead(sensorPin) + analogRead(sensorPin2)) / 2;
-    sumOfReadings += avgdsensorReadings[i];
+    avgdSensor1Readings[i] = analogRead(sensorPin); 
+    avgdSensor2Readings[i] = analogRead(sensorPin2); 
+    sumOfSensor1Readings += avgdSensor1Readings[i];
+    sumOfSensor2Readings += avgdSensor2Readings[i];
     delay(20);
   }
-  SENSOR_WET = sumOfReadings / 15;
+  
+  SENSOR1_WET = sumOfSensor1Readings / 15;
+  SENSOR2_WET = sumOfSensor2Readings / 15;
 
-  Serial.print("Sensor Wet: ");
-  Serial.println(SENSOR_WET);
-  delay(1000);
+  Serial.print("Sensor 1 Wet: ");
+  Serial.print(SENSOR1_WET);
+  Serial.print("   //////   ");
+  Serial.print("Sensor 2 Wet: ");
+  Serial.println(SENSOR2_WET);
+  delay(2000);
+}
+
+
+void printFramedCenteredText(int numberOfLines, int heightOfFont, int widthOfFont, int lengthOfDelay, String string1, String string2, String string3)
+{
+  int length1 = strlen(string1.c_str());
+  int length2 = strlen(string2.c_str());
+  int length3 = strlen(string3.c_str());
+
+  u8g2.clearBuffer();
+  u8g2_prepare();
+  u8g2.setFontMode(2);
+  u8g2.setDrawColor(1);
+  u8g2.drawRFrame(1, 1, 126, 62, 3);
+
+  if (numberOfLines == 1){
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string1.c_str());
+  } else if (numberOfLines == 2){
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 10, string1.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) + 2, string2.c_str());
+  } else{
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length1) / 2)), (heightOfScreen / 2) - 17, string1.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length2) / 2)), (heightOfScreen / 2) - (heightOfFont / 2), string2.c_str());
+    u8g2.drawStr(((widthOfScreen / 2) - ((widthOfFont * length3) / 2)), (heightOfScreen / 2) + 7, string3.c_str());
+  }
+  
+  delay(500);
+  u8g2.sendBuffer();
+  delay(lengthOfDelay);
 }
 
 void u8g2_lastWater(void)
@@ -1017,18 +1037,33 @@ float readSensor2()
 	return Plantval2;							// Return analog moisture value
 }
 
-int conformSensorReadings(int sensorReading)
+int conformSensor1Readings(int sensorReading)
 {
-  if (sensorReading < SENSOR_WET)
+  if (sensorReading < SENSOR1_WET)
   {
-    sensorReading = SENSOR_WET;
+    sensorReading = SENSOR1_WET;
   }
-  if (sensorReading > SENSOR_DRY)
+  if (sensorReading > SENSOR1_DRY)
   {
-    sensorReading = SENSOR_DRY;
+    sensorReading = SENSOR1_DRY;
   }
   return sensorReading;
 }
+
+
+int conformSensor2Readings(int sensorReading)
+{
+  if (sensorReading < SENSOR2_WET)
+  {
+    sensorReading = SENSOR2_WET;
+  }
+  if (sensorReading > SENSOR2_DRY)
+  {
+    sensorReading = SENSOR2_DRY;
+  }
+  return sensorReading;
+}
+
 
 void startCyclePassive(int counter, int counter2)
 {
@@ -1313,7 +1348,7 @@ void sleepWakeTimer()
     }
   }
 
-  // check if time is after 10pm and before 6:30am && it has been on for at least 5 seconds
+  // check if time is after 10pm and before 6:30am && it has been on for at least 10 seconds
   if ((!sleepMode && hour >= BED_TIME) || (!sleepMode && hour <= WAKE_TIME))
   {
     if(currentMillis - wakePreviousMillis >= wakeDelay)
@@ -1325,11 +1360,13 @@ void sleepWakeTimer()
   }
 }
 
-// ====================================================================================================================================
+
+// =======================================================================================================================================================================================================
 
 //                      SETUP 
 
-// ====================================================================================================================================
+// ======================================================================================================================================================================================================= 
+
 
 void setup(void) 
 {
@@ -1443,16 +1480,16 @@ void setup(void)
   calibrateSensorsWet();
 
   retrieveSchedule();
-  Serial.println("Retreived Schedules");
+  Serial.println("Retrieved Schedules\n\n");
   
   initSetup = true;
 }
 
-// ====================================================================================================================================
+// =======================================================================================================================================================================================================
 
 //                      LOOP 
 
-// ====================================================================================================================================
+// ======================================================================================================================================================================================================= 
 
 void loop(void) 
 {
@@ -1484,6 +1521,7 @@ void loop(void)
   
   readingPreviousMillis = currentMillis;
   
+  // TODO: Need these?
   uint32_t readings1 = 0;
   uint32_t readings2 = 0;
 
@@ -1493,19 +1531,30 @@ void loop(void)
   int sensorVal1 = analogRead(sensorPin);
   int sensorVal2 = analogRead(sensorPin2);
 
-  Serial.print(sensorVal1);
-  Serial.print("\t");
-  Serial.println(sensorVal2);
   //temperatureVal = dht.readTemperature(true);
-  moisture = map(sensorVal1,  SENSOR_WET, SENSOR_DRY, 100, 0);
-  moisture2 = map(sensorVal2, SENSOR_WET, SENSOR_DRY, 100, 0);
+  moisture = map(sensorVal1,  SENSOR1_WET, SENSOR1_DRY, 100, 0);
+  moisture2 = map(sensorVal2, SENSOR2_WET, SENSOR2_DRY, 100, 0);
   
+  Serial.print("SENSOR1_DRY: ");
+  Serial.print(SENSOR1_DRY);
+  Serial.print("\t\t");
+  Serial.print("SENSOR2_DRY: ");
+  Serial.println(SENSOR2_DRY);
+  Serial.print("SENSOR1_WET: ");
+  Serial.print(SENSOR1_WET);
+  Serial.print("\t\t");
+  Serial.print("SENSOR2_WET: ");
+  Serial.println(SENSOR2_WET);
+  Serial.print("SensorVal1: ");
   Serial.print(sensorVal1);
   Serial.print("\t");
+  Serial.print("Moisture1: ");
   Serial.print(moisture);
-  Serial.print("\t\t\t");
+  Serial.print("\t\t");
+  Serial.print("SensorVal2: ");
   Serial.print(sensorVal2);
   Serial.print("\t");
+  Serial.print("Moisture2: ");
   Serial.print(moisture2);
   Serial.print("\t\t");
 
